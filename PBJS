@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Image Slideshow</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: #0e0e11;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+    }
+
+    .stage {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: #0e0e11;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      transition: opacity 1.2s ease-in-out;
+      pointer-events: none;
+    }
+
+    .slide.active {
+      opacity: 1;
+    }
+
+    /* Fills the whole screen. Use object-fit: contain instead if you
+       want the entire image visible (with letterbox bars). */
+    .slide img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    .caption {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 1.25rem 1.5rem;
+      text-align: center;
+      color: #fff;
+      font-size: 0.95rem;
+      letter-spacing: 0.02em;
+      background: linear-gradient(to top, rgba(0,0,0,0.65), transparent);
+      pointer-events: none;
+    }
+
+    .dots {
+      position: absolute;
+      bottom: 1.25rem;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 0.5rem;
+      z-index: 2;
+    }
+
+    .dots button {
+      width: 9px;
+      height: 9px;
+      padding: 0;
+      border: none;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.35);
+      cursor: pointer;
+      transition: background 0.3s, transform 0.3s;
+    }
+
+    .dots button.active {
+      background: rgba(255, 255, 255, 0.95);
+      transform: scale(1.35);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .slide { transition: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="stage" id="stage">
+    <div class="dots" id="dots"></div>
+  </div>
+
+  <script>
+    /* ------------------------------------------------------------------
+       1. PUT YOUR IMAGES HERE.
+       Add a path (or full URL) for each image.
+       `caption` is optional.
+    ------------------------------------------------------------------ */
+    const IMAGES = [
+      { src: "images/photo1.jpg", caption: "First shot" },
+      { src: "images/photo2.jpg", caption: "Second shot" },
+      { src: "images/photo3.jpg" },
+      { src: "[example.com](https://example.com/remote-image.jpg)", caption: "From the web" }
+    ];
+
+    const INTERVAL_MS = 20000;   // 20 seconds per image
+
+    /* ------------------------------------------------------------------ */
+
+    const stage = document.getElementById("stage");
+    const dotsBox = document.getElementById("dots");
+    const slides = [];
+    let current = 0;
+    let timer = null;
+
+    if (!IMAGES.length) {
+      stage.insertAdjacentHTML("beforeend",
+        '<p style="position:absolute;inset:0;display:grid;place-items:center;color:#888;font-size:1rem">No images yet — add some to the IMAGES array.</p>');
+    }
+
+    IMAGES.forEach((item, i) => {
+      const slide = document.createElement("div");
+      slide.className = "slide";
+
+      const img = document.createElement("img");
+      img.src = item.src;
+      img.alt = item.caption || `Slide ${i + 1}`;
+      img.decoding = "async";
+
+      slide.appendChild(img);
+
+      if (item.caption) {
+        const cap = document.createElement("div");
+        cap.className = "caption";
+        cap.textContent = item.caption;
+        slide.appendChild(cap);
+      }
+
+      stage.appendChild(slide);
+      slides.push(slide);
+
+      const dot = document.createElement("button");
+      dot.type = "button";
+      dot.setAttribute("aria-label", `Go to image ${i + 1}`);
+      dot.addEventListener("click", () => { show(i); restartTimer(); });
+      dotsBox.appendChild(dot);
+    });
+
+    function show(index) {
+      slides.forEach((s, i) => s.classList.toggle("active", i === index));
+      dotsBox.querySelectorAll("button").forEach((d, i) =>
+        d.classList.toggle("active", i === index)
+      );
+      current = index;
+
+      // Preload the next image so the swap has no flicker
+      const next = IMAGES[(index + 1) % IMAGES.length];
+      if (next) { new Image().src = next.src; }
+    }
+
+    function advance() {
+      show((current + 1) % IMAGES.length);
+    }
+
+    function restartTimer() {
+      clearInterval(timer);
+      timer = setInterval(advance, INTERVAL_MS);
+    }
+
+    if (slides.length) {
+      show(0);
+      restartTimer();
+    }
+
+    // Pause while tab is hidden, resume on return
+    document.addEventListener("visibilitychange", () => {
+      document.hidden ? clearInterval(timer) : restartTimer();
+    });
+
+    // Arrow keys to step manually
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowRight") { advance(); restartTimer(); }
+      if (e.key === "ArrowLeft") {
+        show((current - 1 + IMAGES.length) % IMAGES.length);
+        restartTimer();
+      }
+    });
+  </script>
+</body>
+</html>
